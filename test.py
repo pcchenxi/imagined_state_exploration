@@ -37,7 +37,7 @@ env = SubprocVecEnv([make_env(env_id, i) for i in range(num_cpu)])
 
 model = PPO_RC(CustomPolicy, env, n_steps=int(1024/num_cpu), ent_coef=0.0, nminibatches=64, noptepochs=4, \
                                     verbose=1, tensorboard_log='/home/xi/model')
-model.learn(total_timesteps=int(1e5))
+model.learn(total_timesteps=int(5e4))
 
 env_test = gym.make(env_id)
 obs = env_test.reset()

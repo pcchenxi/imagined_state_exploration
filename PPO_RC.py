@@ -321,13 +321,13 @@ class PPO_RC(ActorCriticRLModel):
             ep_info_buf = deque(maxlen=100)
             t_first_start = time.time()
 
-            # obs, returns, rewards, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run(1024)
-            # if self.obs_all == []:
-            #     self.obs_all = obs 
-            # else:
-            #     self.obs_all = np.concatenate((self.obs_all, obs), axis=0)
-            # print(len(self.obs_all))
-            # self.train_reward_classifier(runner, self.obs_all)
+            obs, returns, rewards, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run(1024)
+            if self.obs_all == []:
+                self.obs_all = obs 
+            else:
+                self.obs_all = np.concatenate((self.obs_all, obs), axis=0)
+            print(len(self.obs_all))
+            self.train_reward_classifier(runner, self.obs_all)
 
             nupdates = total_timesteps // self.n_batch
             for update in range(1, nupdates + 1):
@@ -339,7 +339,7 @@ class PPO_RC(ActorCriticRLModel):
                 cliprangenow = self.cliprange(frac)
                 # true_reward is the reward without discount
                 obs, returns, rewards, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run()
-                # self.obs_all = np.concatenate((self.obs_all, obs), axis=0)
+                self.obs_all = np.concatenate((self.obs_all, obs), axis=0)
 
                 ep_info_buf.extend(ep_infos)
                 mb_loss_vals = []
@@ -381,8 +381,8 @@ class PPO_RC(ActorCriticRLModel):
                 t_now = time.time()
                 fps = int(self.n_batch / (t_now - t_start))
 
-                # if update%20 == 0 and update != 0:
-                #     self.train_reward_classifier(runner, self.obs_all)
+                if update%20 == 0 and update != 0:
+                    self.train_reward_classifier(runner, self.obs_all)
 
                     # env_id = "MountainCarContinuous-v0"
                     # env_test = gym.make(env_id)
@@ -496,8 +496,8 @@ class PPO_RC(ActorCriticRLModel):
         fig,ax = plt.subplots(3,1)
         for ob in obs_local:
             ax[0].scatter(ob[0], ob[1], c='b', s=1)
-        # for ob in obs_new:
-        #     ax[0].scatter(ob[0], ob[1], c='r', s=1)
+        for ob in obs_new:
+            ax[0].scatter(ob[0], ob[1], c='r', s=1)
         # plt.scatter(obs_new[:,0], obs_new[:,1], c=new_reward_prob, vmin=vmin, vmax=vmax, s=35, cmap=cmap)
 
         # plt.pause(0.001)
@@ -643,8 +643,8 @@ class Runner(AbstractEnvRunner):
             if isinstance(self.env.action_space, gym.spaces.Box):
                 clipped_actions = np.clip(actions, self.env.action_space.low, self.env.action_space.high)
             self.obs[:], rewards, self.dones, infos = self.env.step(clipped_actions)
-            # if step_num is None:
-            #     rewards = self.model.knn.predict(self.obs) + rewards
+            if step_num is None:
+                rewards = self.model.knn.predict(self.obs) + rewards
             for info in infos:
                 maybe_ep_info = info.get('episode')
                 if maybe_ep_info is not None:
