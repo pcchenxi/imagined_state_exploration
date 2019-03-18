@@ -426,22 +426,22 @@ class PPO_RC(ActorCriticRLModel):
 
     def train_reward_classifier(self, runner, obs):
         print('train reward!!!!')
-        obs_local, returns, rewards, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run(1024)
+        obs_local, returns, rewards, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run(2048)
         obs_min = np.min(obs, axis=0)
         obs_max = np.max(obs, axis=0)
 
         step = (obs_max - obs_min)/100.0
 
         obs_new, new_diff_norm, obs_space = [], [], []
-        for i in np.linspace(obs_min[0], obs_max[0], num=100):
-            for j in np.linspace(obs_min[1], obs_max[1], num=20):
+        for i in np.linspace(-1.2, 0.5, num=100):
+            for j in np.linspace(-0.1, 0.1, num=40):
                 ob_rand = np.array([i, j])
                 obs_diff = obs - ob_rand
                 diff_norm = LA.norm(obs_diff, axis=1)
                 min_norm = diff_norm.min()
 
                 obs_space.append(ob_rand)
-                if min_norm > 0.003 and min_norm < 0.01:
+                if min_norm > 0.001 and min_norm < 0.02:
                     obs_new.append(ob_rand)
                     new_diff_norm.append(min_norm)
 
@@ -493,11 +493,18 @@ class PPO_RC(ActorCriticRLModel):
         print('done')
 
 
-        fig,ax = plt.subplots(3,1)
+        fig,ax = plt.subplots(2,1, figsize=(15,15))
+        ax[0].scatter(-1.2, -0.1, c='white', s=1)
+        ax[0].scatter(0.5, 0.1, c='white', s=1)
+
+        ax[1].scatter(-1.2, -0.1, c='white', s=1)
+        ax[1].scatter(0.5, 0.1, c='white', s=1)
+
+
         for ob in obs_local:
             ax[0].scatter(ob[0], ob[1], c='b', s=1)
-        for ob in obs_new:
-            ax[0].scatter(ob[0], ob[1], c='r', s=1)
+        # for ob in obs_new:
+        #     ax[0].scatter(ob[0], ob[1], c='r', s=1)
         # plt.scatter(obs_new[:,0], obs_new[:,1], c=new_reward_prob, vmin=vmin, vmax=vmax, s=35, cmap=cmap)
 
         # plt.pause(0.001)
@@ -541,9 +548,9 @@ class PPO_RC(ActorCriticRLModel):
         for ob, ob_prob, ob_class in zip(obs_space, new_reward_class, new_reward_class):
             # ax[1].scatter(ob[0], ob[1], c=(0, ob_prob, 0), s=1)
             if ob_class == 0:
-                ax[2].scatter(ob[0], ob[1], c='b', s=1)
+                ax[1].scatter(ob[0], ob[1], c='b', s=10)
             else:
-                ax[2].scatter(ob[0], ob[1], c='r', s=1)
+                ax[1].scatter(ob[0], ob[1], c='r', s=10)
 
         plt.show()
 
