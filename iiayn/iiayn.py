@@ -10,6 +10,7 @@ class IIAYN:
 
         # self.density_estimator = Gaussian_Density_Estimator()
         self.density_estimator = KernelDensity(kernel='gaussian', bandwidth=0.1)
+        self.density_estimator_q = KernelDensity(kernel='gaussian', bandwidth=0.1)
 
     def update_history(self, obs, obs_next, dones):
         if self.obs_hist is None:
@@ -92,7 +93,7 @@ import matplotlib.pyplot as plt
 
 # data = np.random.randn(2**6).reshape(-1, 1)
 iiayn = IIAYN()
-data = np.random.normal(0, 1, 256).reshape(-1, 1)
+data = np.random.normal(0, 1, 128).reshape(-1, 1)
 dones = np.zeros(len(data)).reshape(-1, 1)
 iiayn.update_history(data, data, dones)
 print(iiayn.obs_hist.shape, iiayn.obs_next_hist.shape)
@@ -108,13 +109,13 @@ sub_entorpy = np.zeros(len(l))
 for i in range(1, len(l)-1, 1):
     index_list = np.concatenate((l[:i],l[i+1:]))
 
-    iiayn.train_density_estimator(hist_index=index_list)
-    sub_entropy = iiayn.get_hist_entropy(hist_index=index_list)
-    y_sub = iiayn.get_pvisited(iiayn.obs_hist)
+    # iiayn.train_density_estimator(hist_index=index_list)
+    # sub_entropy = iiayn.get_hist_entropy(hist_index=index_list)
+    # y_sub = iiayn.get_pvisited(iiayn.obs_hist)
 
 
-    sub_entorpy[i] = (hist_entropy - sub_entropy)*10
-    print(hist_entropy - sub_entropy, y[i])
+    # sub_entorpy[i] = (hist_entropy - sub_entropy)*10
+    # print(hist_entropy - sub_entropy, y[i])
 
     # plt.clf()
     # plt.scatter(iiayn.obs_hist[:,0], y, c='r')
@@ -123,11 +124,18 @@ for i in range(1, len(l)-1, 1):
     # # plt.scatter(iiayn.obs_hist[:,0], sub_entorpy, c='b') #; plt.tight_layout()
     # plt.show()
 
+    iiayn.density_estimator_q.fit([iiayn.obs_hist[i]])
+    y_q = np.exp(iiayn.density_estimator_q.score_samples(iiayn.obs_hist))
 
-print(hist_entropy)
+    kl = (y * np.log(y/(y_q+0.00001))).sum()
+    sub_entorpy[i] = kl
+    print(kl, y[i])
 
-plt.scatter(iiayn.obs_hist[:,0], y, c='b') #; plt.tight_layout()
-plt.scatter(iiayn.obs_hist[:,0], sub_entorpy/sub_entorpy.max(), c='r')
+
+print(hist_entropy, sub_entorpy.max())
+
+plt.scatter(iiayn.obs_hist[:,0], (y-y.min())/(y.max()-y.min()), c='b') #; plt.tight_layout()
+plt.scatter(iiayn.obs_hist[:,0], (sub_entorpy-sub_entorpy.min())/(sub_entorpy.max()-sub_entorpy.min()), c='r')
 # plt.scatter(sub_entorpy, y) #; plt.tight_layout()
 
 plt.show()
