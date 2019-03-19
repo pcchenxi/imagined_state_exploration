@@ -1,4 +1,4 @@
-from density_estimator import Gaussian_Density_Estimator
+# from density_estimator import Gaussian_Density_Estimator
 from sklearn.neighbors.kde import KernelDensity
 import numpy as np
 
@@ -91,52 +91,84 @@ class IIAYN:
 import numpy as np
 import matplotlib.pyplot as plt
 
-# data = np.random.randn(2**6).reshape(-1, 1)
-iiayn = IIAYN()
-data = np.random.normal(0, 1, 128).reshape(-1, 1)
-dones = np.zeros(len(data)).reshape(-1, 1)
-iiayn.update_history(data, data, dones)
-print(iiayn.obs_hist.shape, iiayn.obs_next_hist.shape)
+# # data = np.random.randn(2**6).reshape(-1, 1)
+# iiayn = IIAYN()
+# data = np.random.normal(0, 1, 128).reshape(-1, 1)
+# dones = np.zeros(len(data)).reshape(-1, 1)
+# iiayn.update_history(data, data, dones)
+# print(iiayn.obs_hist.shape, iiayn.obs_next_hist.shape)
 
-iiayn.train_density_estimator()
-y = iiayn.get_pvisited(iiayn.obs_hist)
-print(y.shape)
+# iiayn.train_density_estimator()
+# y = iiayn.get_pvisited(iiayn.obs_hist)
+# print(y.shape)
 
-hist_entropy = iiayn.get_hist_entropy()
-l = np.arange(len(iiayn.obs_hist))
-sub_entorpy = np.zeros(len(l))
+# hist_entropy = iiayn.get_hist_entropy()
+# l = np.arange(len(iiayn.obs_hist))
+# sub_entorpy = np.zeros(len(l))
 
-for i in range(1, len(l)-1, 1):
-    index_list = np.concatenate((l[:i],l[i+1:]))
+# for i in range(1, len(l)-1, 1):
+#     index_list = np.concatenate((l[:i],l[i+1:]))
 
-    # iiayn.train_density_estimator(hist_index=index_list)
-    # sub_entropy = iiayn.get_hist_entropy(hist_index=index_list)
-    # y_sub = iiayn.get_pvisited(iiayn.obs_hist)
-
-
-    # sub_entorpy[i] = (hist_entropy - sub_entropy)*10
-    # print(hist_entropy - sub_entropy, y[i])
-
-    # plt.clf()
-    # plt.scatter(iiayn.obs_hist[:,0], y, c='r')
-    # plt.scatter(iiayn.obs_hist[:,0], y_sub, c='b', s = 1)
-    # plt.scatter(iiayn.obs_hist[i,0], y[i], c='g', s=10)
-    # # plt.scatter(iiayn.obs_hist[:,0], sub_entorpy, c='b') #; plt.tight_layout()
-    # plt.show()
-
-    iiayn.density_estimator_q.fit([iiayn.obs_hist[i]])
-    y_q = np.exp(iiayn.density_estimator_q.score_samples(iiayn.obs_hist))
-
-    kl = (y * np.log(y/(y_q+0.00001))).sum()
-    sub_entorpy[i] = kl
-    print(kl, y[i])
+#     # iiayn.train_density_estimator(hist_index=index_list)
+#     # sub_entropy = iiayn.get_hist_entropy(hist_index=index_list)
+#     # y_sub = iiayn.get_pvisited(iiayn.obs_hist)
 
 
-print(hist_entropy, sub_entorpy.max())
+#     # sub_entorpy[i] = (hist_entropy - sub_entropy)*10
+#     # print(hist_entropy - sub_entropy, y[i])
 
-plt.scatter(iiayn.obs_hist[:,0], (y-y.min())/(y.max()-y.min()), c='b') #; plt.tight_layout()
-plt.scatter(iiayn.obs_hist[:,0], (sub_entorpy-sub_entorpy.min())/(sub_entorpy.max()-sub_entorpy.min()), c='r')
-# plt.scatter(sub_entorpy, y) #; plt.tight_layout()
+#     # plt.clf()
+#     # plt.scatter(iiayn.obs_hist[:,0], y, c='r')
+#     # plt.scatter(iiayn.obs_hist[:,0], y_sub, c='b', s = 1)
+#     # plt.scatter(iiayn.obs_hist[i,0], y[i], c='g', s=10)
+#     # # plt.scatter(iiayn.obs_hist[:,0], sub_entorpy, c='b') #; plt.tight_layout()
+#     # plt.show()
+
+#     iiayn.density_estimator_q.fit([iiayn.obs_hist[i]])
+#     y_q = np.exp(iiayn.density_estimator_q.score_samples(iiayn.obs_hist))
+
+#     kl = (y * np.log(y/(y_q+0.00001))).sum()
+#     sub_entorpy[i] = kl
+#     print(kl, y[i])
+
+
+# print(hist_entropy, sub_entorpy.max())
+
+# plt.scatter(iiayn.obs_hist[:,0], (y-y.min())/(y.max()-y.min()), c='b') #; plt.tight_layout()
+# plt.scatter(iiayn.obs_hist[:,0], (sub_entorpy-sub_entorpy.min())/(sub_entorpy.max()-sub_entorpy.min()), c='r')
+# # plt.scatter(sub_entorpy, y) #; plt.tight_layout()
+
+# plt.show()
+data_test = np.linspace(-20, 20, 200).reshape(-1, 1)
+kde = KernelDensity(kernel='gaussian', bandwidth=0.1)
+
+data1 = np.random.normal(0, 1, 1024).reshape(-1, 1)  #np.random.randn(1024).reshape(-1, 1)
+kde.fit(data1)
+y_test1 = np.exp(kde.score_samples(data_test)) + 0.00001
+entropy1 = 0
+for y in y_test1:
+    entropy1 += -y*np.log(y)
+
+
+entropy_diff = np.zeros(len(data_test))
+for i in range(len(data_test)):
+    data_add = np.random.normal(data_test[i], 1, 100).reshape(-1, 1)
+    data2 = np.concatenate((data1, data_add), axis=0)
+
+    kde.fit(data2)
+    y_test2 = np.exp(kde.score_samples(data_test)) + 0.00001
+
+    entropy2 = 0
+    for y in y_test2:
+        entropy2 += -y*np.log(y)
+
+    entropy_diff[i] = entropy2-entropy1 
+
+plt.scatter(data_test[:,0], y_test1, c='b')
+plt.scatter(data_test[:,0], entropy_diff, c='r')
+
+# print(y_test1)
+
+print(entropy1, entropy2, entropy2-entropy1)
 
 plt.show()
-
