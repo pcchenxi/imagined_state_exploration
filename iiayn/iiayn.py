@@ -1,8 +1,11 @@
 # from density_estimator import Gaussian_Density_Estimator
 from sklearn.neighbors.kde import KernelDensity
+from numpy import linalg as LA
 import numpy as np
+import matplotlib.pyplot as plt
 
-class IIAYN:
+
+class IIAYN_density:
     def __init__(self):
         self.obs_hist = None 
         self.obs_next_hist = None
@@ -88,87 +91,183 @@ class IIAYN:
         return avg_rew 
 
 
-import numpy as np
-import matplotlib.pyplot as plt
+
+class IIAYN_coverage:
+    def __init__(self, sigma=0.05):
+        self.obs_hist = None 
+        self.obs_next_hist = None
+        self.dones = None
+
+        self.obs_in_use = None
+        self.dist_weight = None
+        self.beta = 1/(sigma**2 * 2)
+
+    def activate_buffer(self):
+        self.obs_in_use = self.obs_hist.copy()
+        obs_min = np.min(self.obs_in_use, axis=0)
+        obs_max = np.max(self.obs_in_use, axis=0)
+        obs_max_diff = obs_max - obs_min
+        self.dist_weight = obs_max_diff.max()/obs_max_diff
+        print(obs_max_diff)
+        print(self.dist_weight)
+
+
+        self.plot_coverage()
+        # plt.clf()
+        # self.plot_coverage_ori()
+
+
+    # def update_history(self, obs, obs_next, dones):
+    def update_history(self, obs):
+        if self.obs_hist is None:
+            self.obs_hist = obs 
+            # self.obs_next_hist = obs_next
+            # self.done_hist = dones
+        else:
+            self.obs_hist = np.concatenate((self.obs_hist, obs), axis=0)
+            # self.obs_next_hist = np.concatenate((self.obs_next_hist, obs_next), axis=0)
+            # self.done_hist = np.concatenate((self.done_hist, dones), axis=0)
+
+
+    def get_pvisited(self, obs_test=None):
+        if obs_test is None:
+            obs_test = self.obs_in_use.copy()
+
+        p_visited = np.zeros(len(obs_test))
+
+        # print(self.obs_in_use)
+        for i in range(len(obs_test)):
+            obs = obs_test[i]
+            obs_diff = self.obs_in_use - obs
+            for d in range(len(obs_diff[0])):
+                obs_diff[:,d] *= self.dist_weight[d]
+
+            diff_norm = LA.norm(obs_diff, axis=1)
+            min_dist = diff_norm.min()
+
+            # min_dist = np.array([np.linalg.norm(x+y) for (x,y) in self.obs_in_use-obs]).min()
+
+            pv = np.exp(-min_dist*min_dist*self.beta)
+            p_visited[i] = 1-pv
+
+
+        return p_visited
+
+
+    def get_preach(self, obs, obs_neighbour):
+        return 1
+
+
+    def get_preal(self, obs_test):
+        return 1
+
+
+    def sample_states(self, obs, sample_state_num):
+        mu = obs
+        sigma = 1/self.dist_weight * 0.1
+        samples = np.random.normal(mu, sigma, size=(sample_state_num, len(obs)))
+
+        # print('in sampling', mu.shape, sigma.shape, samples.shape)
+
+        # print(obs, samples)
+
+        return samples
+
+
+    def compute_reward(self, obs_test, sample_state_num=10):
+        if self.obs_in_use is None:
+            return 0
+
+        rewards = np.zeros(len(obs_test))
+        for i in range(len(obs_test)):
+            obs = obs_test[i]
+            imagined_states = self.sample_states(obs, sample_state_num)
+            p_visited = self.get_pvisited(imagined_states)
+            
+            rewards[i] = p_visited.mean()
+
+        return rewards #self.get_pvisited(obs) 
+
+
+    def plot_coverage(self):
+        xbins=100j
+        ybins=100j
+        x,y = self.obs_hist[-10000:,1], self.obs_hist[-10000:,0]
+        xx, yy = np.mgrid[x.min():x.max():xbins,
+                      y.min():y.max():ybins]
+        # xx, yy = np.mgrid[-1:1:xbins,
+        #               -1:1:ybins]        
+        xy_sample = np.vstack([yy.ravel(), xx.ravel()]).T
+        # xy_train  = np.vstack([y, x]).T
+        # self.estimator.fit(xy_train)
+        # z = np.exp(self.estimator.score_samples(xy_sample))
+        z = self.compute_reward(xy_sample)
+        zz= np.reshape(z, xx.shape)
+
+        z_ori = self.get_pvisited(xy_sample)
+        zz_ori = np.reshape(z_ori, xx.shape)
+
+        # print('in plot', xy_sample[0], xy_sample[-1])
+        print(z.max(), z.min())
+
+        fig,(ax1, ax2)  = plt.subplots(2,1)
+
+
+        im = ax1.pcolormesh(xx, yy, zz, vmin=0, vmax=1)
+        ax1.scatter(x, y, s=2, facecolor='white')
+        # ax1.colorbar(im)
+
+        im = ax2.pcolormesh(xx, yy, zz_ori, vmin=0, vmax=1)
+        ax2.scatter(x, y, s=2, facecolor='white')
+        # ax2.colorbar(im)
+
+        plt.show()
+
+    def plot_coverage_ori(self):
+        xbins=100j
+        ybins=100j
+        x,y = self.obs_hist[-10000:,1], self.obs_hist[-10000:,0]
+        xx, yy = np.mgrid[x.min():x.max():xbins,
+                      y.min():y.max():ybins]
+        # xx, yy = np.mgrid[-1:1:xbins,
+        #               -1:1:ybins]        
+        xy_sample = np.vstack([yy.ravel(), xx.ravel()]).T
+        # xy_train  = np.vstack([y, x]).T
+        # self.estimator.fit(xy_train)
+        # z = np.exp(self.estimator.score_samples(xy_sample))
+        z = self.get_pvisited(xy_sample)
+        zz= np.reshape(z, xx.shape)
+
+        # print('in plot', xy_sample[0], xy_sample[-1])
+        # print(z)
+
+        im = plt.pcolormesh(xx, yy, zz, vmin=0, vmax=1)
+        plt.scatter(x, y, s=2, facecolor='white')
+        plt.colorbar(im)
+        plt.show()
+
+
+# # ########## for testing ###########
+# import numpy as np
+# import matplotlib.pyplot as plt
 
 # # data = np.random.randn(2**6).reshape(-1, 1)
-# iiayn = IIAYN()
-# data = np.random.normal(0, 1, 128).reshape(-1, 1)
+# # data_test = np.linspace(-1, 1, 200).reshape(-1, 1)
+
+# iiayn = IIAYN_coverage()
+# # data = np.random.normal(0, 1, 1280).reshape(-1, 1)
+# # data = np.array([[0]])
+# data = np.array([[0,0], [0, 0.5]])
 # dones = np.zeros(len(data)).reshape(-1, 1)
-# iiayn.update_history(data, data, dones)
-# print(iiayn.obs_hist.shape, iiayn.obs_next_hist.shape)
+# iiayn.update_history(data)
+# iiayn.activate_buffer()
+# # print(iiayn.obs_hist.shape)
 
-# iiayn.train_density_estimator()
-# y = iiayn.get_pvisited(iiayn.obs_hist)
-# print(y.shape)
+# data_test = np.array([[0.1, 0.1]])
+# coverage_y = iiayn.compute_reward(data_test)
 
-# hist_entropy = iiayn.get_hist_entropy()
-# l = np.arange(len(iiayn.obs_hist))
-# sub_entorpy = np.zeros(len(l))
-
-# for i in range(1, len(l)-1, 1):
-#     index_list = np.concatenate((l[:i],l[i+1:]))
-
-#     # iiayn.train_density_estimator(hist_index=index_list)
-#     # sub_entropy = iiayn.get_hist_entropy(hist_index=index_list)
-#     # y_sub = iiayn.get_pvisited(iiayn.obs_hist)
-
-
-#     # sub_entorpy[i] = (hist_entropy - sub_entropy)*10
-#     # print(hist_entropy - sub_entropy, y[i])
-
-#     # plt.clf()
-#     # plt.scatter(iiayn.obs_hist[:,0], y, c='r')
-#     # plt.scatter(iiayn.obs_hist[:,0], y_sub, c='b', s = 1)
-#     # plt.scatter(iiayn.obs_hist[i,0], y[i], c='g', s=10)
-#     # # plt.scatter(iiayn.obs_hist[:,0], sub_entorpy, c='b') #; plt.tight_layout()
-#     # plt.show()
-
-#     iiayn.density_estimator_q.fit([iiayn.obs_hist[i]])
-#     y_q = np.exp(iiayn.density_estimator_q.score_samples(iiayn.obs_hist))
-
-#     kl = (y * np.log(y/(y_q+0.00001))).sum()
-#     sub_entorpy[i] = kl
-#     print(kl, y[i])
-
-
-# print(hist_entropy, sub_entorpy.max())
-
-# plt.scatter(iiayn.obs_hist[:,0], (y-y.min())/(y.max()-y.min()), c='b') #; plt.tight_layout()
-# plt.scatter(iiayn.obs_hist[:,0], (sub_entorpy-sub_entorpy.min())/(sub_entorpy.max()-sub_entorpy.min()), c='r')
-# # plt.scatter(sub_entorpy, y) #; plt.tight_layout()
+# print(coverage_y)
+# # plt.scatter(data_test[:,0], coverage_y, c='b')
+# # plt.scatter(data_test[:,0], -coverage_y, c='r')
 
 # plt.show()
-data_test = np.linspace(-20, 20, 200).reshape(-1, 1)
-kde = KernelDensity(kernel='gaussian', bandwidth=0.1)
-
-data1 = np.random.normal(0, 1, 1024).reshape(-1, 1)  #np.random.randn(1024).reshape(-1, 1)
-kde.fit(data1)
-y_test1 = np.exp(kde.score_samples(data_test)) + 0.00001
-entropy1 = 0
-for y in y_test1:
-    entropy1 += -y*np.log(y)
-
-
-entropy_diff = np.zeros(len(data_test))
-for i in range(len(data_test)):
-    data_add = np.random.normal(data_test[i], 1, 100).reshape(-1, 1)
-    data2 = np.concatenate((data1, data_add), axis=0)
-
-    kde.fit(data2)
-    y_test2 = np.exp(kde.score_samples(data_test)) + 0.00001
-
-    entropy2 = 0
-    for y in y_test2:
-        entropy2 += -y*np.log(y)
-
-    entropy_diff[i] = entropy2-entropy1 
-
-plt.scatter(data_test[:,0], y_test1, c='b')
-plt.scatter(data_test[:,0], entropy_diff, c='r')
-
-# print(y_test1)
-
-print(entropy1, entropy2, entropy2-entropy1)
-
-plt.show()

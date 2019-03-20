@@ -7,8 +7,11 @@ from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines.common import set_global_seeds
 
 # from stable_baselines import PPO2, SAC
-from iiayn.sac import SAC
-from iiayn.policies import MlpPolicy
+# from iiayn.sac import SAC
+# from iiayn.policies import MlpPolicy
+
+from iiayn.ppo2 import PPO2
+from policy import CustomPolicy 
 
 
 def make_env(env_id, rank, seed=0):
@@ -34,8 +37,12 @@ num_cpu = 1  # Number of processes to use
 # env = SubprocVecEnv([make_env(env_id, i) for i in range(num_cpu)])
 env = DummyVecEnv([lambda: env])
 
-model = SAC(MlpPolicy, env, verbose=1, tensorboard_log='/home/xi/model')
-model.learn(total_timesteps=int(5e5), log_interval=10)
+# model = PPO2(CustomPolicy, env, verbose=1, tensorboard_log='/home/xi/model')
+# model.learn(total_timesteps=int(5e5))
+
+model = PPO2(CustomPolicy, env, n_steps=int(1024/num_cpu), ent_coef=0.0, nminibatches=64, noptepochs=4, \
+                                    verbose=1, tensorboard_log='/home/xi/model')
+model.learn(total_timesteps=int(5e5))
 
 env_test = gym.make(env_id)
 obs = env_test.reset()
