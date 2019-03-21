@@ -15,6 +15,8 @@ from stable_baselines.ppo2.ppo2 import safe_mean, get_schedule_fn
 from stable_baselines.sac.policies import SACPolicy
 from stable_baselines import logger
 
+from iiayn.iiayn import IIAYN_coverage
+
 
 def get_vars(scope):
     """
@@ -118,6 +120,8 @@ class SAC(OffPolicyRLModel):
         self.processed_obs_ph = None
         self.processed_next_obs_ph = None
         self.log_ent_coef = None
+
+        self.iiayn = IIAYN_coverage()
 
         if _init_setup_model:
             self.setup_model()
@@ -312,6 +316,12 @@ class SAC(OffPolicyRLModel):
         batch = self.replay_buffer.sample(self.batch_size)
         batch_obs, batch_actions, batch_rewards, batch_next_obs, batch_dones = batch
 
+        batch_rewards = self.iiayn.compute_reward(batch_next_obs)
+
+        # print('in train')
+        # for i in range(len(batch_rewards)):
+        #     print(batch_rewards[i], batch_rewards_[i])
+
         feed_dict = {
             self.observations_ph: batch_obs,
             self.actions_ph: batch_actions,
@@ -368,6 +378,15 @@ class SAC(OffPolicyRLModel):
             n_updates = 0
             infos_values = []
 
+            obs = self.env.reset()
+            for i in range(128):
+                action = self.env.action_space.sample()
+                new_obs, reward, done, info = self.env.step(action)
+                # print(new_obs)
+                # self.env.render()
+                self.iiayn.update_history([obs])
+                obs = new_obs
+
             for step in range(total_timesteps):
                 if callback is not None:
                     # Only stop training if return value is False, not when it is None. This is for backwards
@@ -385,14 +404,19 @@ class SAC(OffPolicyRLModel):
                 else:
                     action = self.policy_tf.step(obs[None], deterministic=False).flatten()
                     # Rescale from [-1, 1] to the correct bounds
-                    rescaled_action = action * np.abs(self.action_space.low)
+                    rescaled_action = action #* np.abs(self.action_space.low)
 
                 assert action.shape == self.env.action_space.shape
 
                 new_obs, reward, done, info = self.env.step(rescaled_action)
-                # print(reward)
-                if reward > 0:
-                    print(reward)
+
+                print(step, action)
+                # self.env.render()
+
+                self.iiayn.update_history([obs])
+
+                if step % 2048 == 0:
+                    self.iiayn.activate_buffer()
 
                 # Store transition in the replay buffer.
                 self.replay_buffer.add(obs, action, reward, new_obs, float(done))
@@ -431,9 +455,10 @@ class SAC(OffPolicyRLModel):
                         infos_values = np.mean(mb_infos_vals, axis=0)
 
                 episode_rewards[-1] += reward
-                if done:
-                    if not isinstance(self.env, VecEnv):
-                        obs = self.env.reset()
+                if done or step%1024 == 0:
+                    obs = self.env.reset()
+                    # if not isinstance(self.env, VecEnv):
+                    #     obs = self.env.reset()
                     episode_rewards.append(0.0)
 
                 if len(episode_rewards[-101:-1]) == 0:

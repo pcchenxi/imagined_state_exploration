@@ -1,0 +1,20 @@
+MuJoCo Pro Personal license activation key, number 52555, type 6.
+
+Issued to Xi Chen <xi8@kth.se>.
+
+Expires August 28, 2019.
+
+This file activates MuJoCo Pro on a single computer with id:
+LINUX_0B0WDS20CTD00000YS71_B2821480010W478
+
+Do not modify this file. Its entire content, including the
+plain text section, is used by the activation manager.
+
+9de7234a7d74f5c8255fe3857ed6e5fc5908b119daa745db339aa89d66ad058e
+3f086e0a2db56ec7511ec324def46bba504dea6c68d6079d5b9e11e15d07629f
+7dca5c0346232f5f8c655b293372fbf73e6878c7904327f4203426c771eb348e
+0955c73f3416c4c477345537835011b8cc8275ba7954142949077c11ed090380
+b564b282001e34e496403c308da5841c34c4236ba012015138dc12c6be7f5dd5
+72e36add27e8f1de08059752267a67d2029f98304dc5d9a384419121a821ed46
+4b421d0aa2877d2e880c98072b8828f6b75d7d39aa2fa389cdbe0538366467fd
+08d2abd02c69d17560a6c4705cafdb0278d4a3d2984cf802c83ffb2dee4d0e36

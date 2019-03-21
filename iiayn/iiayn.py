@@ -3,7 +3,21 @@ from sklearn.neighbors.kde import KernelDensity
 from numpy import linalg as LA
 import numpy as np
 import matplotlib.pyplot as plt
-
+import os
+import glob
+# import matplotlib
+# gui_env = ['TKAgg','GTK3Agg','Qt4Agg','WXAgg']
+# matplotlib.use(gui_env[1],warn=False, force=True)
+# from matplotlib import pyplot as plt
+# for gui in gui_env:
+#     try:
+#         print( "testing", gui)
+#         matplotlib.use(gui,warn=False, force=True)
+#         from matplotlib import pyplot as plt
+#         break
+#     except:
+#         continue
+# print ("Using:",matplotlib.get_backend())
 
 class IIAYN_density:
     def __init__(self):
@@ -11,6 +25,8 @@ class IIAYN_density:
         self.obs_next_hist = None
         self.dones = None
 
+        self.obs_in_use = None
+        self.dist_weight = None
         # self.density_estimator = Gaussian_Density_Estimator()
         self.density_estimator = KernelDensity(kernel='gaussian', bandwidth=0.1)
         self.density_estimator_q = KernelDensity(kernel='gaussian', bandwidth=0.1)
@@ -101,8 +117,14 @@ class IIAYN_coverage:
         self.obs_in_use = None
         self.dist_weight = None
         self.beta = 1/(sigma**2 * 2)
+        files = glob.glob('coverage_*.jpg')
+        for f in files:
+            os.remove(f)   
+
+
 
     def activate_buffer(self):
+        print('activate buffer', len(self.obs_hist))
         self.obs_in_use = self.obs_hist.copy()
         obs_min = np.min(self.obs_in_use, axis=0)
         obs_max = np.max(self.obs_in_use, axis=0)
@@ -112,7 +134,7 @@ class IIAYN_coverage:
         print(self.dist_weight)
 
 
-        self.plot_coverage()
+        self.plot_coverage(len(self.obs_in_use))
         # plt.clf()
         # self.plot_coverage_ori()
 
@@ -176,27 +198,28 @@ class IIAYN_coverage:
 
     def compute_reward(self, obs_test, sample_state_num=10):
         if self.obs_in_use is None:
-            return 0
+            return [0]
 
-        rewards = np.zeros(len(obs_test))
-        for i in range(len(obs_test)):
-            obs = obs_test[i]
-            imagined_states = self.sample_states(obs, sample_state_num)
-            p_visited = self.get_pvisited(imagined_states)
+        # rewards = np.zeros(len(obs_test))
+        # for i in range(len(obs_test)):
+        #     obs = obs_test[i]
+        #     imagined_states = self.sample_states(obs, sample_state_num)
+        #     p_visited = self.get_pvisited(imagined_states)
             
-            rewards[i] = p_visited.mean()
+        #     rewards[i] = p_visited.mean()
 
-        return rewards #self.get_pvisited(obs) 
+        # return rewards #self.get_pvisited(obs) 
+        return self.get_pvisited(obs_test) 
 
 
-    def plot_coverage(self):
-        xbins=100j
-        ybins=100j
-        x,y = self.obs_hist[-10000:,1], self.obs_hist[-10000:,0]
-        xx, yy = np.mgrid[x.min():x.max():xbins,
-                      y.min():y.max():ybins]
-        # xx, yy = np.mgrid[-1:1:xbins,
-        #               -1:1:ybins]        
+    def plot_coverage(self, index=0):
+        xbins=200j
+        ybins=200j
+        # x,y = self.obs_hist[-1000:,1], self.obs_hist[-1000:,0]
+        # xx, yy = np.mgrid[self.obs_hist[:,1].min():self.obs_hist[:,1].max():xbins,
+        #               self.obs_hist[:,0].min():self.obs_hist[:,0].max():ybins]
+        xx, yy = np.mgrid[-6:6:xbins,
+                      -12:4:ybins]        
         xy_sample = np.vstack([yy.ravel(), xx.ravel()]).T
         # xy_train  = np.vstack([y, x]).T
         # self.estimator.fit(xy_train)
@@ -213,38 +236,16 @@ class IIAYN_coverage:
         fig,(ax1, ax2)  = plt.subplots(2,1)
 
 
-        im = ax1.pcolormesh(xx, yy, zz, vmin=0, vmax=1)
-        ax1.scatter(x, y, s=2, facecolor='white')
+        im = ax1.pcolormesh(yy, xx, zz, vmin=0, vmax=1)
+        # ax1.scatter(x, y, s=2, facecolor='white')
         # ax1.colorbar(im)
 
-        im = ax2.pcolormesh(xx, yy, zz_ori, vmin=0, vmax=1)
-        ax2.scatter(x, y, s=2, facecolor='white')
+        im = ax2.pcolormesh(yy, xx, zz_ori, vmin=0, vmax=1)
+        # ax2.scatter(x, y, s=2, facecolor='white')
         # ax2.colorbar(im)
 
-        plt.show()
-
-    def plot_coverage_ori(self):
-        xbins=100j
-        ybins=100j
-        x,y = self.obs_hist[-10000:,1], self.obs_hist[-10000:,0]
-        xx, yy = np.mgrid[x.min():x.max():xbins,
-                      y.min():y.max():ybins]
-        # xx, yy = np.mgrid[-1:1:xbins,
-        #               -1:1:ybins]        
-        xy_sample = np.vstack([yy.ravel(), xx.ravel()]).T
-        # xy_train  = np.vstack([y, x]).T
-        # self.estimator.fit(xy_train)
-        # z = np.exp(self.estimator.score_samples(xy_sample))
-        z = self.get_pvisited(xy_sample)
-        zz= np.reshape(z, xx.shape)
-
-        # print('in plot', xy_sample[0], xy_sample[-1])
-        # print(z)
-
-        im = plt.pcolormesh(xx, yy, zz, vmin=0, vmax=1)
-        plt.scatter(x, y, s=2, facecolor='white')
-        plt.colorbar(im)
-        plt.show()
+        plt.savefig('coverage_' + str(index)+'.jpg')
+        print('coverage:', z_ori.mean())
 
 
 # # ########## for testing ###########

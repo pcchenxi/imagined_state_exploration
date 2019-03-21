@@ -294,7 +294,7 @@ class PPO2(ActorCriticRLModel):
 
                 self.iiayn.update_history(obs)
                 
-                if update%20 == 0 and update != 0:
+                if update%3 == 0 and update != 0:
                     self.iiayn.activate_buffer()
                     print('update buffer')
 
@@ -427,6 +427,7 @@ class Runner(AbstractEnvRunner):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [], [], [], [], [], []
         mb_states = self.states
         ep_infos = []
+        self.env.reset()
         for _ in range(self.n_steps):
             actions, values, self.states, neglogpacs = self.model.step(self.obs, self.states, self.dones)
             mb_obs.append(self.obs.copy())
@@ -438,19 +439,21 @@ class Runner(AbstractEnvRunner):
             # Clip the actions to avoid out of bound error
             if isinstance(self.env.action_space, gym.spaces.Box):
                 clipped_actions = np.clip(actions, self.env.action_space.low, self.env.action_space.high)
-            self.obs[:], rewards, self.dones, infos = self.env.step(clipped_actions)
+            # print(actions, clipped_actions, self.env.action_space.low, self.env.action_space.high)
 
+            self.obs[:], rewards, self.dones, infos = self.env.step(clipped_actions)
+            self.env.render()
             ir = self.model.iiayn.compute_reward(self.obs)
 
-            if rewards[0] > 0:
-                print('goal reached !')
+            # if rewards[0] > 0:
+            #     print('goal reached !')
             # print(rewards, ir)
 
             for info in infos:
                 maybe_ep_info = info.get('episode')
                 if maybe_ep_info is not None:
                     ep_infos.append(maybe_ep_info)
-            mb_rewards.append(rewards+ir)
+            mb_rewards.append(ir)
         # batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
@@ -474,10 +477,14 @@ class Runner(AbstractEnvRunner):
             mb_advs[step] = last_gae_lam = delta + self.gamma * self.lam * nextnonterminal * last_gae_lam
         mb_returns = mb_advs + mb_values
 
+        print(mb_obs.shape, mb_rewards.shape, mb_returns.shape)
+
         mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, true_reward = \
             map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, true_reward))
 
         print(mb_rewards.mean(), mb_rewards.max())
+
+
 
         return mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, mb_states, ep_infos, true_reward
 
